@@ -1,0 +1,12 @@
+[submodule "ccnSim-0.4"]
+	path = ccnSim-0.4
+	url = https://github.com/inetrg/ccnSim-0.4.git
+[submodule "flora"]
+	path = flora
+	url = https://github.com/inetrg/flora.git
+[submodule "inet-dsme"]
+	path = inet-dsme
+	url = https://github.com/inetrg/inet-dsme.git
+[submodule "inet"]
+	path = inet
+	url = https://github.com/inetrg/inet.git

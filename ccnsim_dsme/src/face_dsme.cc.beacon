@@ -1,0 +1,301 @@
+#include "face_dsme.h"
+
+#include "ccnsim_dsme.h"
+#include "packets/inet_ccn_interest_m.h"
+#include "packets/inet_ccn_data_m.h"
+#include "packets/ccnsim_inet_info_m.h"
+#include "packets/ccn_interest_list_m.h"
+
+#include "ccn_data.h"
+#include "ccn_interest.h"
+
+#define BEACON_TIMER 0x1
+
+    // The module class needs to be registered with OMNeT++
+    Define_Module(face_dsme);
+
+    void face_dsme::initialize()
+    {
+        // Initialize is called at the beginning of the simulation.
+        EV << "INIT face_dsme" << "\n";
+        PushLatency = registerSignal("PushLatency");
+        IndicationLatency = registerSignal("IndicationLatency");
+
+        cMessage *beacon_time = new cMessage("timer", BEACON_TIMER);
+
+        SentCCNData = registerSignal("SentCCNData");
+        SentCCNIndication = registerSignal("SentCCNIndication");
+        SentCCNInterest = registerSignal("SentCCNInterest");
+        SentCCNPush = registerSignal("SentCCNPush");
+        ReceivedCCNData = registerSignal("ReceivedCCNData");
+        ReceivedCCNIndication = registerSignal("ReceivedCCNIndication");
+        ReceivedCCNInterest = registerSignal("ReceivedCCNInterest");
+        ReceivedCCNPush = registerSignal("ReceivedCCNPush");
+    }
+
+    template <typename T, typename S> void face_dsme::copy_ccn_data(T origin, S dest)
+    {
+        dest->setChunk(origin->getChunk());
+        dest->setPrice(origin->getPrice());
+        dest->setTarget(origin->getTarget());
+        dest->setOrigin(origin->getOrigin());
+        dest->setHops(origin->getHops());
+        dest->setTSB(origin->getTSB());
+        dest->setTSI(origin->getTSI());
+        dest->setCapacity(origin->getCapacity());
+        dest->setBtw(origin->getBtw());
+        dest->setFound(origin->getFound());
+    }
+
+    template <typename T, typename S> void face_dsme::copy_ccn_interest(T origin, S dest)
+    {
+        dest->setPathArraySize(origin->getPathArraySize());
+        for (int k=0; k < origin->getPathArraySize(); k++) {
+            dest->setPath(k, origin->getPath(k));
+        }
+        dest->setChunk(origin->getChunk());
+        dest->setHops(origin->getHops());
+        dest->setTarget(origin->getTarget());
+        dest->setRep_target(origin->getRep_target());
+        dest->setBtw(origin->getBtw());
+        dest->setTTL(origin->getTTL());
+        dest->setNfound(origin->getNfound());
+        dest->setCapacity(origin->getCapacity());
+        dest->setOrigin(origin->getOrigin());
+        dest->setDelay(origin->getDelay());
+        dest->setSerialNumber(origin->getSerialNumber());
+        dest->setAggregate(origin->getAggregate());
+    }
+
+
+bool face_dsme::appendBeaconInterests()
+{
+    throw cRuntimeError("ASDASD");
+    if (beacon_interests.size() > 0) {
+        //auto payload = inet::makeShared<inet::ccn_interest_list>();
+        //payload->setIntsArraySize(beacon_interests.size());
+        //auto payload = inet::makeShared<inet::ByteCountChunk>(inet::B(1));
+        for (auto b: beacon_interests) {
+            EV_INFO << "EL STUFF: " << beacon_interests.size() << endl;
+
+            struct beacon_desc *e = beacon_interests.back();
+            beacon_interests.pop_back();
+
+            /* TODO: Add region tag!! */
+
+            inet::inet_ccn_interest i;
+            copy_ccn_interest<ccn_interest*, inet::inet_ccn_interest*>(e->interest, &i);
+            //list->insertInts(i);
+            delete e->interest;
+            delete e;
+        }
+        /* TODO: Set correct Chunk length! */
+        //payload->setChunkLength(inet::B(1));
+        //packet->insertAtBack(payload);
+        return true;
+    }
+
+    return false;
+}
+    cMessage *face_dsme::inet_to_ccn_msg(inet::Packet *packet, int *dest_face)
+    {
+        cMessage *msg;
+        auto info = packet->removeAtFront<inet::ccnsim_inet_info>();
+        auto time_tag = info->getTag<inet::CreationTimeTag>();
+        switch(info->getType()) {
+            case CCN_D: {
+                auto payload = packet->removeAtFront<inet::inet_ccn_data>();
+                /* Create and populate CCN interest */
+                msg = new ccn_data("data",CCN_D);
+
+                /* Create and populate CCN data */
+                ccn_data *data = check_and_cast<ccn_data*>(msg);
+                copy_ccn_data<inet::IntrusivePtr<inet::inet_ccn_data>, ccn_data*>(payload, data);
+                const_cast<face_dsme*>(this)->emit(ReceivedCCNData, payload->getChunk());
+
+                break;
+            }
+            case CCN_I: {
+                auto payload = packet->removeAtFront<inet::inet_ccn_interest>();
+                /* Create and populate CCN interest */
+                msg = new ccn_interest("interest",CCN_I);
+                ccn_interest *interest = check_and_cast<ccn_interest*>(msg);
+                copy_ccn_interest<inet::IntrusivePtr<inet::inet_ccn_interest>, ccn_interest*>(payload, interest);
+                const_cast<face_dsme*>(this)->emit(ReceivedCCNInterest, payload->getChunk());
+                break;
+            }
+            case INDICATION: {
+                auto payload = packet->removeAtFront<inet::inet_ccn_interest>();
+                /* Create and populate CCN interest */
+                msg = new ccn_interest("indication",INDICATION);
+                ccn_interest *interest = check_and_cast<ccn_interest*>(msg);
+                copy_ccn_interest<inet::IntrusivePtr<inet::inet_ccn_interest>, ccn_interest*>(payload, interest);
+                const_cast<face_dsme*>(this)->emit(ReceivedCCNIndication, payload->getChunk());
+                const_cast<face_dsme*>(this)->emit(IndicationLatency, simTime() - time_tag->getCreationTime());
+                break;
+            }
+            case PUSH: {
+                auto payload = packet->removeAtFront<inet::inet_ccn_data>();
+                /* Create and populate CCN interest */
+                msg = new ccn_data("push",PUSH);
+
+                /* Create and populate CCN data */
+                ccn_data *data = check_and_cast<ccn_data*>(msg);
+                copy_ccn_data<inet::IntrusivePtr<inet::inet_ccn_data>, ccn_data*>(payload, data);
+
+                const_cast<face_dsme*>(this)->emit(ReceivedCCNPush, payload->getChunk());
+                const_cast<face_dsme*>(this)->emit(PushLatency, simTime() - time_tag->getCreationTime());
+
+                break;
+
+           }
+            default:
+                throw cRuntimeError("inet_to_ccn_msg: Unknown CCN packet type!") ;
+        }
+
+        *dest_face = info->getDest_face();
+        return msg;
+    }
+
+    inet::Packet *face_dsme::ccn_msg_to_inet(cMessage *msg, int dest_face)
+    {
+        inet::Packet *packet;
+
+        char ccn_str[64];
+        switch (msg->getKind())
+        {
+            case CCN_D: {
+                ccn_data *tmp_data = (ccn_data *)msg;
+                sprintf(ccn_str, "ccn_data-%llu", tmp_data->getChunk());
+                packet = new inet::Packet(ccn_str);
+                auto payload = inet::makeShared<inet::inet_ccn_data>();
+
+                copy_ccn_data<ccn_data*, inet::IntrusivePtr<inet::inet_ccn_data>>(tmp_data, payload);
+
+                /* TODO: Chunk shouldn't be zero, otherwise debug mode fails */
+                payload->setChunkLength(inet::B(1));
+                packet->insertAtFront(payload);
+                const_cast<face_dsme*>(this)->emit(SentCCNData, tmp_data->getChunk());
+
+                break;
+                }
+
+            case CCN_I:
+            {
+                ccn_interest *tmp_int = (ccn_interest *)msg;
+                sprintf(ccn_str, "ccn_interest-%llu", tmp_int->getChunk());
+                packet = new inet::Packet(ccn_str);
+                auto payload = inet::makeShared<inet::inet_ccn_interest>();
+                copy_ccn_interest<ccn_interest*, inet::IntrusivePtr<inet::inet_ccn_interest>>(tmp_int, payload);
+
+
+                /* TODO: Chunk shouldn't be zero, otherwise debug mode fails */
+                payload->setChunkLength(inet::B(1));
+                packet->insertAtFront(payload);
+                const_cast<face_dsme*>(this)->emit(SentCCNInterest, tmp_int->getChunk());
+                break;
+            }
+            case INDICATION:
+            {
+                ccn_interest *tmp_int = (ccn_interest *)msg;
+                sprintf(ccn_str, "ccn_interest_indication-%llu", tmp_int->getChunk());
+                packet = new inet::Packet(ccn_str);
+                auto payload = inet::makeShared<inet::inet_ccn_interest>();
+                copy_ccn_interest<ccn_interest*, inet::IntrusivePtr<inet::inet_ccn_interest>>(tmp_int, payload);
+
+
+                /* TODO: Chunk shouldn't be zero, otherwise debug mode fails */
+                payload->setChunkLength(inet::B(1));
+                packet->insertAtFront(payload);
+                const_cast<face_dsme*>(this)->emit(SentCCNIndication, tmp_int->getChunk());
+                break;
+            }
+            case PUSH:
+                {
+                ccn_data *tmp_data = (ccn_data *)msg;
+                sprintf(ccn_str, "ccn_push-%llu", tmp_data->getChunk());
+                packet = new inet::Packet(ccn_str);
+                auto payload = inet::makeShared<inet::inet_ccn_data>();
+
+                copy_ccn_data<ccn_data*, inet::IntrusivePtr<inet::inet_ccn_data>>(tmp_data, payload);
+
+                /* TODO: Chunk shouldn't be zero, otherwise debug mode fails */
+                payload->setChunkLength(inet::B(1));
+                packet->insertAtFront(payload);
+                const_cast<face_dsme*>(this)->emit(SentCCNPush, tmp_data->getChunk());
+
+                break;
+
+                }
+            default:
+                throw cRuntimeError("ccn_msg_to_inet: Unknown CCN packet type!") ;
+        }
+
+
+            auto info = inet::makeShared<inet::ccnsim_inet_info>();
+            info->setType(msg->getKind());
+            info->setDest_face(getParentModule()->gate("face$o",dest_face + 1)->getNextGate()->getIndex());
+            info->setChunkLength(inet::B(1));
+            auto creationTimeTag = info->addTag<inet::CreationTimeTag>();
+            creationTimeTag->setCreationTime(simTime());
+            packet->insertAtFront(info);
+
+            return packet;
+    }
+
+    void face_dsme::handleMessage(cMessage *msg)
+    {
+        // EV << msg << "\n";
+        // EV << msg->getArrivalGate() << "\n";
+        // EV << msg->getArrivalGate()->getIndex() << "\n";
+        // EV << msg->getArrivalGate()->getFullName() << "\n";
+        // EV << msg->getArrivalGate()->str() << "\n";
+
+        EV << "node["<<getIndex()<<"]: face_dsme::handleMessage\n";
+
+        // simply forward message to the same gate number
+        std::string str = msg->getArrivalGate()->getFullName();
+        if (str.find("lower") != std::string::npos)
+        {
+            EV << "RX from lower, send up;" << str  << "\n";
+            // find out dst face and send msg there
+            inet::Packet *packet = check_and_cast<inet::Packet*>(msg);
+            int dest_face;
+
+            cMessage *ccn_msg = inet_to_ccn_msg(packet, &dest_face);
+            send(ccn_msg, "upper_layer$o", dest_face - 1);
+            delete msg;
+        }
+        else {
+            EV << "RX from upper, send down;" << str << "\n";
+
+            int index = msg->getArrivalGate()->getIndex();
+            if (msg->getKind() == CCN_I && 1) {
+                EV_INFO << "Queueing interest to beacon" << endl;
+                queueBeaconInterest(msg, index);
+            }
+            else {
+                auto packet = ccn_msg_to_inet(msg, index);
+                // get network interface of the host assiciated with this node
+                inet::NetworkInterface *netif = check_and_cast<inet::NetworkInterface*>(getParentModule()->gate("data_face$o")->getNextGate()->getOwnerModule()->getSubmodule("wlan", 0));
+
+                // get network interface of the host associated to the node we want to reach (dest)
+                inet::NetworkInterface *dest_netif = check_and_cast<inet::NetworkInterface*>(getParentModule()->gate("face$o",index+1)->getNextGate()->getOwnerModule()->gate("data_face$o")->getNextGate()->getOwnerModule()->getSubmodule("wlan", 0));
+
+                // tag with associated host interface
+                packet->addTag<inet::InterfaceReq>()->setInterfaceId(netif->getInterfaceId());
+
+                // tag with remote host (dest) MAC address
+                packet->addTag<inet::MacAddressReq>()->setDestAddress(dest_netif->getMacAddress());
+
+                // tag with local host source address
+                packet->addTagIfAbsent<inet::MacAddressReq>()->setSrcAddress(netif->getMacAddress());
+
+                packet->addTag<inet::PacketProtocolTag>()->setProtocol(&inet::Protocol::arp);
+
+                send(packet, "lower_layer$o");
+                delete msg;
+                // send(msg, "lower_layer$o", msg->getArrivalGate()->getIndex());
+            }
+        }
+    }

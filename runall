@@ -1,0 +1,5 @@
+#!/bin/bash
+NUM_CORES=$(nproc)
+SIMULATION=rfd_repos NUM_CORES=$NUM_CORES make -C ccnsim_dsme runall
+SIMULATION=rfd_clients NUM_CORES=$NUM_CORES make -C ccnsim_dsme runall
+make -C ccnsim_dsme scavetool
