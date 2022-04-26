@@ -28,6 +28,6 @@ Please follow our [Getting Started](getting_started.md) instructions for further
 
 <!-- TODO: update URLs -->
 [paper-link]:https://github.com/inetrg/IFIP-Networking-LoRa-ICN-2022
-[preprint-link]:https://github.com/inetrg/IFIP-Networking-LoRa-ICN-2022
+[preprint-link]:https://arxiv.org/pdf/2204.11040.pdf
 [paper-badge]: https://img.shields.io/badge/Paper-IEEE%20Xplore-gray
-[preprint-badge]: https://img.shields.io/badge/Preprint-arXiv-gray
+[preprint-badge]: https://img.shields.io/badge/Preprint-arXiv-green
