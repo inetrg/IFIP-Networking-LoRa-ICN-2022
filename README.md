@@ -2,6 +2,7 @@
 
 [![Paper][paper-badge]][paper-link]
 [![Preprint][preprint-badge]][preprint-link]
+[![Video][video-badge]][video-link]
 
 This repository contains code and documentation to reproduce experimental results of the paper **"[Long-Range ICN for the IoT: Exploring a LoRa System Design][preprint-link]"** published in Proc. of the IFIP Networking Conference 2022.
 
@@ -29,5 +30,7 @@ Please follow our [Getting Started](getting_started.md) instructions for further
 <!-- TODO: update URLs -->
 [paper-link]:https://github.com/inetrg/IFIP-Networking-LoRa-ICN-2022
 [preprint-link]:https://arxiv.org/pdf/2204.11040.pdf
+[video-link]:https://youtu.be/tJRfUUsuqyQ
 [paper-badge]: https://img.shields.io/badge/Paper-IEEE%20Xplore-gray
 [preprint-badge]: https://img.shields.io/badge/Preprint-arXiv-green
+[video-badge]:https://img.shields.io/youtube/views/tJRfUUsuqyQ?style=social
