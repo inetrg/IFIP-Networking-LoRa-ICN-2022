@@ -28,9 +28,9 @@ of different mapping alternatives in terms of robustness and~efficiency.
 Please follow our [Getting Started](getting_started.md) instructions for further information how to compile and execute the code.
 
 <!-- TODO: update URLs -->
-[paper-link]:https://github.com/inetrg/IFIP-Networking-LoRa-ICN-2022
+[paper-link]:https://doi.org/10.23919/IFIPNetworking55013.2022.9829792
 [preprint-link]:https://arxiv.org/pdf/2204.11040.pdf
 [video-link]:https://youtu.be/tJRfUUsuqyQ
-[paper-badge]: https://img.shields.io/badge/Paper-IEEE%20Xplore-gray
+[paper-badge]: https://img.shields.io/badge/Paper-IEEE%20Xplore-green
 [preprint-badge]: https://img.shields.io/badge/Preprint-arXiv-green
 [video-badge]:https://img.shields.io/youtube/views/tJRfUUsuqyQ?style=social
